@@ -13,8 +13,10 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
+import os
 
-
+from dotenv import load_dotenv
+load_dotenv()
 hf_api_key=st.secrets['HF_Token']
 groq_api_key=st.secrets['GROQ_API_KEY']
 st.set_page_config(page_title="RESEARCH PAPER CHATBOT", page_icon="📰")
@@ -35,13 +37,17 @@ with st.sidebar:
 .""")
    
 
-embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2",api_key=hf_api_key)
+os.environ['HF_Token']=os.getenv("HF_Token")
+embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 
 ## set up Streamlit 
 st.write("Upload Pdf's and chat with their content")
 
+## Input the Groq API Key
 
+
+## Check if groq api key is provided
 
 llm=ChatGroq(groq_api_key=groq_api_key,model_name="Gemma2-9b-It")
 
