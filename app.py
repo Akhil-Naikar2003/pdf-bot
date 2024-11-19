@@ -1,5 +1,7 @@
 ## RAG Q&A Conversation With PDF Including Chat History
 import streamlit as st
+from langchain.schema import HumanMessage, AIMessage
+
 from langchain.chains import create_history_aware_retriever, create_retrieval_chain
 from langchain.chains.combine_documents import create_stuff_documents_chain
 from langchain_community.vectorstores import FAISS
@@ -11,44 +13,58 @@ from langchain_core.runnables.history import RunnableWithMessageHistory
 from langchain_huggingface import HuggingFaceEmbeddings
 from langchain_text_splitters import RecursiveCharacterTextSplitter
 from langchain_community.document_loaders import PyPDFLoader
-import os
 
-from dotenv import load_dotenv
-load_dotenv()
-st.secrets['HF_Token']
 
-os.environ['HF_Token']=os.getenv("HF_Token")
-embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
+hf_api_key=st.secrets['HF_Token']
+groq_api_key=st.secrets['GROQ_API_KEY']
+st.set_page_config(page_title="RESEARCH PAPER CHATBOT", page_icon="📰")
+st.title("📰 You Got This")
+with st.sidebar:
+    # if st.button('Click to go to OpenAI'):
+    # Redirect the user to the URL when the button is clicked
+    st.markdown("[Go Back](http)", unsafe_allow_html=True)
+    st.markdown("**Guide to Use ** .")
+    st.write("""
+1.Enter your Groq API Key in the "Enter your Groq API key:" input box.\n
+2.Enter a Session ID for multiple conversations.\n
+3.Upload PDF files using the "Choose A PDF file" button.\n
+4.Wait for the app to process the uploaded PDF(s).\n
+5.Enter your question in the "Your question:" input box.\n
+6.View the Assistant's response based on the PDF content.\n
+7.Click the Chat History expander to view the conversation history.\n
+.""")
+   
+
+embeddings=HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2",api_key=hf_api_key)
 
 
 ## set up Streamlit 
-st.title("Conversational RAG With PDF uplaods and chat history")
 st.write("Upload Pdf's and chat with their content")
 
-## Input the Groq API Key
-api_key=st.text_input("Enter your Groq API key:",type="password")
 
-## Check if groq api key is provided
-if api_key:
-    llm=ChatGroq(groq_api_key=api_key,model_name="Gemma2-9b-It")
+
+llm=ChatGroq(groq_api_key=groq_api_key,model_name="Gemma2-9b-It")
 
     ## chat interface
 
-    session_id=st.text_input("Session ID",value="default_session")
+session_id=st.text_input("Enter Session ID (for multiple conversations):",value="default_session")
     ## statefully manage chat history
 
-    if 'store' not in st.session_state:
+if 'store' not in st.session_state:
         st.session_state.store={}
 
-    uploaded_files=st.file_uploader("Choose A PDf file",type="pdf",accept_multiple_files=True)
+uploaded_files=st.file_uploader("Choose A PDf file",type="pdf",accept_multiple_files=True)
     ## Process uploaded  PDF's
-    if uploaded_files:
+if uploaded_files:
         documents=[]
         for uploaded_file in uploaded_files:
+         with st.spinner(f"Processing {uploaded_file.name}..."):
+
             temppdf=f"./temp.pdf"
             with open(temppdf,"wb") as file:
                 file.write(uploaded_file.getvalue())
                 file_name=uploaded_file.name
+
 
             loader=PyPDFLoader(temppdf)
             docs=loader.load()
@@ -59,6 +75,7 @@ if api_key:
         splits = text_splitter.split_documents(documents)
         vectorstore = FAISS.from_documents(documents=splits, embedding=embeddings)
         retriever = vectorstore.as_retriever()    
+        st.success(f"Processed {uploaded_file.name} successfully!")
 
         contextualize_q_system_prompt=(
             "Given a chat history and the latest user question"
@@ -81,13 +98,14 @@ if api_key:
 
         # Answer question
         system_prompt = (
-                "You are an assistant for question-answering tasks. "
-                "Use the following pieces of retrieved context to answer "
-                "the question. If you don't know the answer, say that you "
-                "don't know. Use three sentences maximum and keep the "
-                "answer concise."
-                "\n\n"
-                "{context}"
+            '''You are an assistant designed to answer questions based on research papers. 
+            When a question is asked, use the relevant sections of the uploaded research to provide a thorough, detailed answer.
+            Your response should explain the context in sufficient but more also in concised way
+              detail to make the information clear and understandable. 
+            If the answer isn't available in the provided context,please dont answer by yourself indicate that you don’t have enough information to provide an answer
+            "\n\n
+            {context}"
+            '''   
             )
         qa_prompt = ChatPromptTemplate.from_messages(
                 [
@@ -121,9 +139,32 @@ if api_key:
                     "configurable": {"session_id":session_id}
                 },  # constructs a key "abc123" in `store`.
             )
-            st.write(st.session_state.store)
+            # st.write(st.session_state.store)
             st.write("Assistant:", response['answer'])
-            st.write("Chat History:", session_history.messages)
+            if 'store' in st.session_state:
+                # Retrieve the session history
+                session_history = st.session_state.store.get(session_id, [])
+                
+                
+                with st.expander("### Chat History:"):
+                
+                    # Iterate through the session history to extract message content
+                    for message_tuple in session_history:
+                        # Check if message_tuple is a tuple and its second element is a list
+                        if isinstance(message_tuple, tuple) and isinstance(message_tuple[1], list):
+                            # Iterate over the list of messages and extract content
+                            for msg in message_tuple[1]:
+                                # Check if the message is a HumanMessage or AIMessage
+                                if isinstance(msg, HumanMessage):
+                                    st.write(f"**User**: {msg.content}")
+                                elif isinstance(msg, AIMessage):
+                                    st.write(f"**AI**: {msg.content}")
+                        else:
+                            # In case it's not a tuple, handle accordingly (if needed)
+                            if isinstance(message_tuple, HumanMessage):
+                                st.write(f"**User**: {message_tuple.content}")
+                            elif isinstance(message_tuple, AIMessage):
+                                st.write(f"**AI**: {message_tuple.content}")
 else:
     st.warning("Please enter the GRoq API Key")
 
