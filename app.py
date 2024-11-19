@@ -171,8 +171,7 @@ if uploaded_files:
                                 st.write(f"**User**: {message_tuple.content}")
                             elif isinstance(message_tuple, AIMessage):
                                 st.write(f"**AI**: {message_tuple.content}")
-else:
-    st.warning("Please enter the GRoq API Key")
+
 
 
 
