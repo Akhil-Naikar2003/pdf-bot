@@ -40,7 +40,6 @@ with st.sidebar:
     7. Click the Chat History expander to view the conversation history.\n
     """)
 
-os.environ['HF_Token'] = os.getenv("HF_Token")
 embeddings = HuggingFaceEmbeddings(model_name="all-MiniLM-L6-v2")
 
 # Suggest related research papers
