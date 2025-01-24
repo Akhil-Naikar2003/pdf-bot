@@ -24,11 +24,10 @@ groq_api_key=st.secrets['GROQ_API_KEY']
 
 # Set up Streamlit page
 st.set_page_config(page_title="RESEARCH PAPER CHATBOT", page_icon="📰")
-st.title("📰 You Got This")
+st.title("📰 PDF BOT")
 
 # Guide
 with st.sidebar:
-    st.markdown("[Go Back](http)", unsafe_allow_html=True)
     st.markdown("**Guide to Use ** .")
     st.write("""
     1. Feel Relaxed and don’t stress more\n
